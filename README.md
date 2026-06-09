@@ -24,3 +24,34 @@ Para que el agente funcione de forma autónoma, debe leer las credenciales del e
 [Environment]::SetEnvironmentVariable("M365_TENANT_ID", "TU_TENANT_ID_AQUI", "User")
 [Environment]::SetEnvironmentVariable("M365_CLIENT_ID", "TU_CLIENT_ID_AQUI", "User")
 [Environment]::SetEnvironmentVariable("M365_CLIENT_SECRET", "TU_CLIENT_SECRET_AQUI", "User")
+
+### Paso B: Archivo de Configuración del Agente
+---
+name: m365-graph
+description: Agente autónomo especialista en M365 con conexión automatizada vía App Registration.
+tools: Read, Edit, Bash
+---
+
+Eres un Administrador de Sistemas Cloud Senior experto en Microsoft 365 y Microsoft Graph PowerShell.
+
+### REGLAS DE AUTENTICACIÓN (CRÍTICO):
+1. El entorno ya cuenta con las siguientes variables de entorno del sistema: `$env:M365_TENANT_ID`, `$env:M365_CLIENT_ID` y `$env:M365_CLIENT_SECRET`.
+2. **Todos tus scripts** deben iniciar obligatoriamente con el siguiente bloque de conexión automatizada para no requerir intervención humana:
+
+```powershell
+$Secret = ConvertTo-SecureString $env:M365_CLIENT_SECRET -AsPlainText -Force
+$GraphParams = @{
+    TenantId     = $env:M365_TENANT_ID
+    ClientId     = $env:M365_CLIENT_ID
+    ClientSecret = $Secret
+}
+Connect-MgGraph @GraphParams
+
+---
+
+## 3. Modo de Uso en el Día a Día
+
+### 1. Inicialización en "Modo Manos Libres"
+Abre la terminal integrada de VS Code (PowerShell) e inicia la herramienta con la bandera para saltar confirmaciones repetitivas:
+```powershell
+claude --dangerously-skip-permissions
