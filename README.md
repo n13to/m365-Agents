@@ -1,94 +1,247 @@
-# 📝 Documentación Técnica: Agente Autónomo M365 con Claude Code
+# M365 Autonomous Agents
 
-Esta documentación detalla la arquitectura, configuración y uso del agente personalizado m365-graph para automatizar la administración de Microsoft 365 de forma desatendida y segura mediante Claude Code (CLI) y PowerShell.
+Dos agentes autónomos especializados en Microsoft 365 que operan mediante App Registrations en Azure con acceso controlado a Microsoft Graph API.
 
----
+## 📋 Descripción
 
-## 1. Arquitectura y Componentes
-El ecosistema de este agente se compone de tres pilares fundamentales:
+Este proyecto contiene dos agentes independientes:
 
-| Componente | Elemento | Propósito y Función |
-| :--- | :--- | :--- |
-| Identidad (Entra ID) | App Registration | Una identidad de aplicación con permisos de tipo Application (no delegados) y Consentimiento de Administrador concedido en el portal de Azure. |
-| Seguridad (Local) | Variables de Entorno | Las credenciales sensibles se almacenan de forma local en el sistema operativo del administrador, quedando ocultas para el modelo de IA. |
-| Contexto (Claude) | Archivo Markdown | Instrucciones del sistema que enseñan a Claude cómo realizar el apretón de manos con Microsoft Graph en cada script que genera. |
+### 1. **m365-graph** – Agente de Lectura
+Especialista en consultas y lecturas de datos desde Microsoft 365 (usuarios, grupos, buzones, calendarios, etc.)
 
----
+**Permisos:** Lectura en Microsoft Graph  
+**Casos de uso:** Auditorías, reportes, consultas de datos, búsquedas
 
-## 2. Guía de Configuración Inicial
+### 2. **m365-mailer** – Agente de Envío de Correos
+Especialista en automatización de envío de notificaciones y correos electrónicos vía Graph API.
 
-### Paso A: Variables de Entorno (Windows)
-Para que el agente funcione de forma autónoma, debe leer las credenciales del entorno local. Ejecuta los siguientes comandos una sola vez en una consola de PowerShell como Administrador (reemplazando con tus datos reales):
-
-    [Environment]::SetEnvironmentVariable("M365_TENANT_ID", "TU_TENANT_ID_AQUI", "User")
-    [Environment]::SetEnvironmentVariable("M365_CLIENT_ID", "TU_CLIENT_ID_AQUI", "User")
-    [Environment]::SetEnvironmentVariable("M365_CLIENT_SECRET", "TU_CLIENT_SECRET_AQUI", "User")
-
-> ¡CRUCIAL! Si tenías Visual Studio Code abierto durante este paso, es obligatorio cerrarlo por completo y volverlo a abrir para que la terminal integrada herede las nuevas variables del sistema operativo.
-
-### Paso B: Archivo de Configuración del Agente
-Dentro de tu proyecto de trabajo abierto en VS Code, crea la siguiente estructura exacta:
-* Ruta del archivo: .claude/agents/m365-graph.md
-
-Contenido del archivo (m365-graph.md):
-
----
-name: m365-graph
-description: Agente autónomo especialista en M365 con conexión automatizada vía App Registration.
-tools: Read, Edit, Bash
----
-
-Eres un Administrador de Sistemas Cloud Senior experto en Microsoft 365 y Microsoft Graph PowerShell.
-
-### REGLAS DE AUTENTICACIÓN (CRÍTICO):
-1. El entorno ya cuenta con las siguientes variables de entorno del sistema: $env:M365_TENANT_ID, $env:M365_CLIENT_ID y $env:M365_CLIENT_SECRET.
-2. Todos tus scripts deben iniciar obligatoriamente con el siguiente bloque de conexión automatizada para no requerir intervención humana:
-
-    $Secret = ConvertTo-SecureString $env:M365_CLIENT_SECRET -AsPlainText -Force
-    $GraphParams = @{
-        TenantId     = $env:M365_TENANT_ID
-        ClientId     = $env:M365_CLIENT_ID
-        ClientSecret = $Secret
-    }
-    Connect-MgGraph @GraphParams
-
-3. Al finalizar el script, incluye siempre Disconnect-MgGraph por buenas prácticas de seguridad.
-4. NUNCA escribas los valores reales del TenantID, ClientID o Secret en el código. Usa siempre las variables de entorno.
-
-### REGLAS DE OPERACIÓN:
-1. Consola: Asume que estás operando en una terminal con PowerShell 7+ y que el módulo Microsoft.Graph ya está instalado.
-2. Seguridad: Antes de ejecutar cualquier comando que modifique o elimine datos (Set-Mg*, Update-Mg*, Remove-Mg*), debes mostrarle el script al usuario en pantalla y explicar el impacto exacto.
-3. Optimización: Prefiere el uso de filtros del lado del servidor (-Filter) en lugar de traer miles de objetos y filtrarlos en local con Where-Object. Use Select-Object para limitar propiedades.
+**Permisos:** Envío de correos en Microsoft Graph  
+**Casos de uso:** Notificaciones automatizadas, alertas, confirmaciones
 
 ---
 
-## 3. Modo de Uso en el Día a Día
+## 🔐 Requisitos Previos
 
-### 1. Inicialización en "Modo Manos Libres"
-Abre la terminal integrada de VS Code (PowerShell) e inicia la herramienta con la bandera para saltar confirmaciones repetitivas:
+### App Registrations en Azure
 
-    claude --dangerously-skip-permissions
+Necesitas **dos App Registrations** diferentes en tu tenant de Azure:
 
-### 2. Activación del Agente
-Una vez dentro del prompt interactivo de Claude (Claude >), invoca al especialista:
+#### App 1: Graph Reader
+```
+Client ID: <M365_CLIENT_ID>
+Tenant ID: <M365_TENANT_ID>
+Client Secret: <M365_CLIENT_SECRET>
 
-    agent m365-graph
+Permisos requeridos (API Permissions):
+- User.Read.All
+- Group.Read.All
+- Mail.Read
+- Calendars.Read.All
+- (adiciona según necesites)
+```
 
-### 3. Ejemplos de Prompts Reales
-Ya puedes pedirle tareas directamente en lenguaje natural:
-* "Necesito un reporte en CSV de todos los usuarios que tengan una licencia de 'Power BI Premium' asignada pero que lleven más de 90 días sin iniciar sesión. Guarda el CSV en esta carpeta."
-* "Enumera los 5 grupos de Teams más antiguos del tenant indicando su fecha de creación y sus propietarios."
+#### App 2: Mail Sender
+```
+Client ID: <M365_MAILER_CLIENT_ID>
+Tenant ID: <M365_TENANT_ID>
+Client Secret: <M365_MAILER_CLIENT_SECRET>
+
+Permisos requeridos (API Permissions):
+- Mail.Send
+```
+
+### Variables de Entorno del Sistema
+
+Registra estas variables en **Variables de Entorno del Sistema** (no de usuario):
+
+```powershell
+# App de lectura (Graph Reader)
+M365_TENANT_ID          = "tu-tenant-id"
+M365_CLIENT_ID          = "app-reader-client-id"
+M365_CLIENT_SECRET      = "app-reader-client-secret"
+
+# App de envío (Mail Sender)
+M365_MAILER_CLIENT_ID       = "app-mailer-client-id"
+M365_MAILER_CLIENT_SECRET   = "app-mailer-client-secret"
+```
 
 ---
 
-## 4. Resolución de Problemas (Troubleshooting)
+## 🚀 Instalación
 
-1. Error: Unexpected token '-graph' in expression
-   * Causa: Escribiste el comando directamente en PowerShell.
-   * Solución: Entra primero a Claude con `claude --dangerously-skip-permissions` y luego pon `agent m365-graph`.
-2. Error: Connect-MgGraph: ClientSecret cannot be null
-   * Causa: VS Code no se enteró de las nuevas variables de entorno.
-   * Solución: Reinicia VS Code por completo.
-3. Error: Authorization_RequestDenied
-   * Causa: Tu App Registration no tiene permisos en Azure para esa consulta específica.
-   * Solución: Ve a Azure Portal, añade el permiso como tipo Application y dale a "Grant admin consent".
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/tu-usuario/m365-agents.git
+cd m365-agents
+```
+
+### 2. Instalar Microsoft Graph PowerShell SDK
+```powershell
+Install-Module Microsoft.Graph -Scope CurrentUser -Force
+```
+
+### 3. Configurar variables de entorno
+Edita las variables del sistema con tus credenciales de Azure (ver sección anterior).
+
+### 4. Verificar la conexión
+```powershell
+# Script de prueba
+.\scripts\check_app_perms.ps1
+```
+
+---
+
+## 📖 Uso
+
+### Agente m365-graph (Lectura)
+
+Los scripts se conectan automáticamente usando las credenciales del sistema:
+
+```powershell
+# Listar usuarios
+.\List-MgUsers.ps1
+
+# Consultar buzones
+.\get_recent_user.ps1
+
+# Crear logs de auditoría
+.\Create-AgentLog.ps1
+```
+
+**Bloque de autenticación automática:**
+```powershell
+$tenantId     = [System.Environment]::GetEnvironmentVariable("M365_TENANT_ID", "Machine")
+$clientId     = [System.Environment]::GetEnvironmentVariable("M365_CLIENT_ID", "Machine")
+$clientSecret = [System.Environment]::GetEnvironmentVariable("M365_CLIENT_SECRET", "Machine")
+
+$SecureSecret = ConvertTo-SecureString $clientSecret -AsPlainText -Force
+$Credential   = New-Object System.Management.Automation.PSCredential($clientId, $SecureSecret)
+Connect-MgGraph -TenantId $tenantId -ClientSecretCredential $Credential
+```
+
+### Agente m365-mailer (Envío de Correos)
+
+Los scripts se conectan automáticamente con las credenciales del mailer:
+
+```powershell
+# Enviar correo (ejemplo)
+Send-MgUserMessage -UserId "usuario@dominio.com" -Message $messageBody
+```
+
+**Bloque de autenticación automática:**
+```powershell
+$SecureSecret = ConvertTo-SecureString $env:M365_MAILER_CLIENT_SECRET -AsPlainText -Force
+$Credential   = New-Object System.Management.Automation.PSCredential($env:M365_MAILER_CLIENT_ID, $SecureSecret)
+Connect-MgGraph -TenantId $env:M365_TENANT_ID -ClientSecretCredential $Credential -NoWelcome
+```
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+m365-agents/
+├── README.md                          # Este archivo
+├── m365-graph.md                      # Documentación del agente de lectura
+├── m365-mailer                        # Configuración del agente mailer
+├── scripts/
+│   ├── check_app_certs.ps1           # Verificar certificados de apps
+│   ├── check_app_perms.ps1           # Verificar permisos de apps
+│   ├── decode_approles.ps1           # Decodificar roles de app
+│   └── ...
+├── List-MgUsers.ps1                  # Ejemplo: listar usuarios
+├── Create-AgentLog.ps1               # Ejemplo: crear logs
+├── get_recent_user.ps1               # Ejemplo: usuarios recientes
+└── .claude/settings.local.json        # Configuración local
+```
+
+---
+
+## 🔒 Seguridad
+
+⚠️ **Importante:**
+- **Nunca** commits credenciales al repositorio
+- Las credenciales deben estar en **Variables de Entorno del Sistema**, no en archivos
+- Usa secretos diferentes para cada agente (lectura vs. envío)
+- Revisa regularmente los permisos otorgados en Azure
+- Revoca secretos expirados en Azure AD
+
+---
+
+## ✅ Validación y Testing
+
+### Verificar conexión exitosa
+```powershell
+.\scripts\check_app_perms.ps1
+```
+
+### Validar permisos
+```powershell
+.\scripts\decode_approles.ps1
+```
+
+### Ver certificados/secretos
+```powershell
+.\scripts\check_app_certs.ps1
+```
+
+---
+
+## 📝 Logs y Auditoría
+
+Los agentes generan logs en:
+```
+./logs/
+├── graph-reader-<date>.log
+├── mailer-<date>.log
+└── agent-audit.log
+```
+
+Para crear nuevos logs:
+```powershell
+.\Create-AgentLog.ps1
+```
+
+---
+
+## 🤝 Contribuciones
+
+Las contribuciones son bienvenidas. Por favor:
+1. Crea un branch (`git checkout -b feature/mi-feature`)
+2. Commit los cambios (`git commit -am 'Agrega nueva feature'`)
+3. Push al branch (`git push origin feature/mi-feature`)
+4. Abre un Pull Request
+
+---
+
+## 📄 Licencia
+
+Este proyecto está bajo licencia [MIT](LICENSE).
+
+---
+
+## 📧 Contacto
+
+Para preguntas o problemas, abre un [Issue](../../issues) en GitHub.
+
+---
+
+## 🛠️ Troubleshooting
+
+### Error: "Connect-MgGraph: Insufficient privileges"
+- Verifica que la App Registration tenga los permisos necesarios en Azure
+- Admin consent debe estar dado en Azure AD
+
+### Error: "Variable de entorno no encontrada"
+- Verifica que las variables estén en **Variables del Sistema** (no de usuario)
+- Reinicia PowerShell después de crear las variables
+- Usa: `[System.Environment]::GetEnvironmentVariable("M365_TENANT_ID", "Machine")`
+
+### Error: "ClientSecret expired"
+- Crea un nuevo secret en la App Registration de Azure
+- Actualiza la variable de entorno con el nuevo secret
+
+---
+
+**Última actualización:** Junio 2026  
+**Versión:** 1.0
