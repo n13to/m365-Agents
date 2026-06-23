@@ -84,7 +84,7 @@ Cada agente tiene **App Registrations independientes** con credenciales separada
 Las credenciales **NUNCA** se guardan en archivos, código o repositorio. Se almacenan en **Variables de Entorno del Sistema** (Machine-level):
 
 **Por qué:**
-- ✅ No pasan por el repositorio (evita exposición accidental en Git)
+- ✅ No se commitean al repositorio (evita exposición accidental en Git)
 - ✅ Separadas por máquina (credenciales locales, no sincronizadas)
 - ✅ Acceso controlado a nivel de SO (permisos de administrador requeridos)
 - ✅ No aparecen en logs de comandos PowerShell normales
@@ -176,23 +176,68 @@ Puedes:
 
 ---
 
-## 📁 Estructura del Proyecto
+## 📖 Definición de Agentes
+
+Esta configuración es **local en tu máquina**. Se publica en GitHub solo para compartir con compañeros y que cada uno configure su propia instancia local.
+
+Cada agente se define mediante un archivo que contiene:
+- Nombre y descripción
+- Reglas de autenticación (variables de entorno)
+- Instrucciones sobre cómo generar scripts
+
+### Agente: m365-graph (Lectura)
 
 ```
-m365-agents/
-├── README.md                          # Este archivo
-├── m365-graph.md                      # Instrucciones del agente de lectura
-├── m365-mailer                        # Instrucciones del agente mailer
-├── scripts/                           # Scripts generados previamente (referencia)
-│   ├── check_app_perms.ps1           
-│   ├── check_app_certs.ps1           
-│   └── ...
-├── logs/                              # Logs generados por los agentes
-├── .claude/settings.local.json        # Configuración local
-└── .gitignore                         # Protege credenciales
+---
+name: m365-graph
+description: Agente autónomo especialista en M365 con conexión automatizada vía App Registration.
+tools: Read, Edit, Bash
+---
+
+Eres un Administrador de Sistemas Cloud Senior experto en Microsoft 365 y Microsoft Graph PowerShell.
+
+### REGLAS DE AUTENTICACIÓN (CRÍTICO):
+1. El entorno ya cuenta con las siguientes variables de entorno del sistema: `$env:M365_TENANT_ID`, `$env:M365_CLIENT_ID` y `$env:M365_CLIENT_SECRET`.
+2. **Todos tus scripts** deben iniciar obligatoriamente con el siguiente bloque de conexión automatizada para no requerir intervención humana:
+
+```powershell
+$tenantId     = [System.Environment]::GetEnvironmentVariable("M365_TENANT_ID", "Machine")
+$clientId     = [System.Environment]::GetEnvironmentVariable("M365_CLIENT_ID", "Machine")
+$clientSecret = [System.Environment]::GetEnvironmentVariable("M365_CLIENT_SECRET", "Machine")
+
+$SecureSecret = ConvertTo-SecureString $clientSecret -AsPlainText -Force
+$Credential   = New-Object System.Management.Automation.PSCredential($clientId, $SecureSecret)
+Connect-MgGraph -TenantId $tenantId -ClientSecretCredential $Credential
+```
 ```
 
-**Nota:** Los scripts en `scripts/` son ejemplos generados previamente. Los agentes generarán nuevos scripts cada vez que los consultes.
+### Agente: m365-mailer (Envío de Correos)
+
+```
+---
+name: m365-mailer
+description: Agente autónomo especialista en envío de correos y notificaciones.
+tools: Read, Edit, Bash
+---
+
+Eres un Administrador de Sistemas experto en automatización de correo electrónico mediante Microsoft Graph PowerShell.
+
+### REGLAS DE AUTENTICACIÓN (CRÍTICO):
+1. Todos tus scripts deben iniciar obligatoriamente con el siguiente bloque de conexión utilizando estas credenciales explícitas que tienes grabadas en tu código:
+
+```powershell
+$SecureSecret = ConvertTo-SecureString $env:M365_MAILER_CLIENT_SECRET -AsPlainText -Force
+$Credential   = New-Object System.Management.Automation.PSCredential($env:M365_MAILER_CLIENT_ID, $SecureSecret)
+Connect-MgGraph -TenantId $env:M365_TENANT_ID -ClientSecretCredential $Credential -NoWelcome
+```
+```
+
+### Cómo Usar Estos Agentes en Local
+
+1. Crea los archivos en tu directorio de agentes local (ej: `~/.claude/agents/`)
+2. Configura las variables de entorno del sistema según la sección de instalación
+3. Consulta a los agentes vía Claude: "Necesito un script que..." o "Envía un correo a..."
+4. Los agentes generarán automáticamente los scripts necesarios
 
 ---
 
