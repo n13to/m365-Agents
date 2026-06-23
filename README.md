@@ -84,7 +84,7 @@ Cada agente tiene **App Registrations independientes** con credenciales separada
 Las credenciales **NUNCA** se guardan en archivos, código o repositorio. Se almacenan en **Variables de Entorno del Sistema** (Machine-level):
 
 **Por qué:**
-- ✅ No se commitean al repositorio (evita exposición accidental en Git)
+- ✅ No pasan por el repositorio (evita exposición accidental en Git)
 - ✅ Separadas por máquina (credenciales locales, no sincronizadas)
 - ✅ Acceso controlado a nivel de SO (permisos de administrador requeridos)
 - ✅ No aparecen en logs de comandos PowerShell normales
